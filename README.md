@@ -112,6 +112,62 @@ npm test
 
 ---
 
+## Performance
+
+I ran a benchmark seeding NilesKV with increasing document counts and timing the same queries at each size. All numbers are medians. Machine: MacBook Air M1, 8 GB.
+
+### NilesQL query time (state already loaded)
+
+| Docs | `GET *` | `WHERE role = "admin"` | `WHERE age > 30` | `WHERE AND` |
+|------|---------|------------------------|------------------|-------------|
+| 100 | 0.015ms | 0.013ms | 0.014ms | 0.016ms |
+| 500 | 0.056ms | 0.069ms | 0.067ms | 0.077ms |
+| 1,000 | 0.116ms | 0.144ms | 0.140ms | 0.154ms |
+| 2,500 | 0.349ms | 0.418ms | 0.408ms | 0.464ms |
+| 5,000 | 0.817ms | 0.992ms | 0.967ms | 1.035ms |
+| 10,000 | 1.806ms | 2.106ms | 2.078ms | 2.240ms |
+
+Scales linearly. Doubling document count roughly doubles query time, which is expected since the evaluator does a full scan.
+
+### Loading state from disk (cold, end-to-end)
+
+This is what you actually pay the first time you run a query, before anything is cached.
+
+| Docs | Median load + query |
+|------|---------------------|
+| 100 | 7ms |
+| 500 | 36ms |
+| 1,000 | 70ms |
+| 2,500 | 180ms |
+| 5,000 | 355ms |
+| 10,000 | 703ms |
+
+It's slow because NilesKV stores every document as its own file on disk. Loading 10k documents means 10k file reads. This is the tradeoff for content-addressed immutable storage.
+
+### NilesQL vs SQLite (10,000 rows, warm)
+
+I was curious how it compared to SQLite doing the same queries. SQLite stores structured columns, NilesQL scans JSON blobs. Neither has indexes.
+
+| Query | NilesQL | SQLite |
+|-------|---------|--------|
+| Full scan | 1.81ms | 5.99ms |
+| `WHERE role = "admin"` | 2.11ms | 1.99ms |
+| `WHERE age > 30` | 2.08ms | 3.82ms |
+| `WHERE active = true` | 2.10ms | 3.93ms |
+| `WHERE role AND active` | 2.24ms | 1.61ms |
+
+Full scans are faster in NilesQL because it's just iterating a plain JS object. SQLite has to deserialize its binary row format. For filtered queries they're roughly comparable. SQLite pulls ahead on compound conditions, probably because it can short-circuit more aggressively.
+
+The comparison isn't really fair to either side -- SQLite is a mature database engine and NilesQL doesn't have indexes -- but the numbers are at least in the same ballpark, which I wasn't expecting.
+
+### Parser fuzzer
+
+I ran the parser against over a billion randomly generated and mutated query strings to check for crashes. The contract is simple: every input should either parse successfully or throw a clean `Error`. No hangs, no uncaught exceptions.
+
+After 1,036,080,000 inputs: **0 crashes**.
+
+---
+
 ## Limitations
 
 - `OR` in WHERE clauses is not supported
