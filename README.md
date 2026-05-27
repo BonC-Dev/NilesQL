@@ -154,17 +154,21 @@ The index itself is immutable and content-addressed -- it's stored as a blob in 
 
 Scales linearly -- doubling documents roughly doubles query time.
 
-### NilesQL vs SQLite (10,000 rows, no index on either side)
+### NilesQL vs SQLite vs NeDB vs LowDB (10,000 docs, all in-memory, no indexes)
 
-| Query | NilesQL | SQLite |
-|-------|---------|--------|
-| Full scan | 1.81ms | 5.99ms |
-| `WHERE role = "admin"` | 2.11ms | 1.99ms |
-| `WHERE age > 30` | 2.08ms | 3.82ms |
-| `WHERE active = true` | 2.10ms | 3.93ms |
-| `WHERE role AND active` | 2.24ms | 1.61ms |
+| Query | NilesQL | SQLite | NeDB | LowDB |
+|-------|---------|--------|------|-------|
+| Full scan | 2.05ms | 6.14ms | 2.71ms | 0.08ms |
+| `WHERE role = "admin"` | 2.30ms | 1.97ms | 1.97ms | 0.08ms |
+| `WHERE age > 30` | 2.25ms | 3.89ms | 3.09ms | 0.09ms |
+| `WHERE active = true` | 2.32ms | 3.98ms | 2.74ms | 0.09ms |
+| `WHERE role AND active` | 2.49ms | 1.62ms | 1.94ms | 0.08ms |
 
-Full scans are faster in NilesQL because it's iterating a plain JS object -- SQLite has to deserialize its binary row format. For filtered queries they're roughly comparable. SQLite pulls ahead slightly on compound conditions. Neither side has indexes here so it's an even comparison of raw scan speed.
+NilesQL is faster than SQLite on full scans and range queries. SQLite edges ahead slightly on equality and compound conditions. NeDB is close throughout.
+
+LowDB is the outlier -- it has no query language at all. There is no parser, no AST, no evaluation layer. You pass it a plain JavaScript function and it runs `array.filter()`. That is why it is so fast. It is included here as a reference point for bare JS iteration speed, not as a real comparison.
+
+Neither NilesQL, SQLite, nor NeDB have indexes enabled in this test, so it is a direct comparison of raw scan speed.
 
 ### Parser fuzzer
 
