@@ -1,3 +1,15 @@
+// Returns all top-level equality (=) comparisons from a WHERE node.
+// Used by the indexed query path to identify which conditions can be
+// satisfied by the field index without loading every document.
+export function getEqualityConditions(whereNode) {
+  if (!whereNode) return [];
+  if (whereNode.type === 'Comparison' && whereNode.op === '=') return [whereNode];
+  if (whereNode.type === 'And') {
+    return whereNode.conditions.filter(c => c.type === 'Comparison' && c.op === '=');
+  }
+  return [];
+}
+
 export function matchesPattern(key, pattern) {
   switch (pattern.type) {
     case 'WildcardPattern': return true;

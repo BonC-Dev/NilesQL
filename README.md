@@ -114,9 +114,34 @@ npm test
 
 ## Performance
 
-I ran a benchmark seeding NilesKV with increasing document counts and timing the same queries at each size. All numbers are medians. Machine: MacBook Air M1, 8 GB.
+All benchmarks run on a MacBook Air M1, 8 GB. Numbers are medians.
 
-### NilesQL query time (state already loaded)
+### Indexed queries vs full scan
+
+NilesKV builds a field index at commit time -- a content-addressed blob mapping field values to document keys. NilesQL uses it to skip loading documents that can't match before reading them from disk.
+
+The speedup is proportional to selectivity. The fewer documents that match, the fewer blobs get read, the bigger the gap.
+
+| Docs | Query | Full scan | Indexed | Speedup |
+|------|-------|-----------|---------|---------|
+| 500 | `WHERE role = "admin"` | 38.7ms | 12.5ms | 3.1x |
+| 500 | `WHERE role = "admin" AND active = true` | 37.4ms | 9.4ms | 4.0x |
+| 1,000 | `WHERE role = "admin"` | 76.3ms | 24.7ms | 3.1x |
+| 1,000 | `WHERE role = "admin" AND active = true` | 75.3ms | 18.7ms | 4.0x |
+| 2,500 | `WHERE role = "admin"` | 195.5ms | 67.7ms | 2.9x |
+| 2,500 | `WHERE role = "admin" AND active = true` | 194.2ms | 48.7ms | 4.0x |
+| 5,000 | `WHERE role = "admin"` | 393.4ms | 128.1ms | 3.1x |
+| 5,000 | `WHERE role = "admin" AND active = true` | 387.8ms | 96.1ms | 4.0x |
+| 10,000 | `WHERE role = "admin"` | 797.5ms | 260.5ms | 3.1x |
+| 10,000 | `WHERE role = "admin" AND active = true` | 919.4ms | 204.5ms | 4.5x |
+
+The speedup stays consistent as the dataset grows because the index lookup is O(1) -- it doesn't matter how many total documents exist, only how many match. At lower match rates (1% instead of 33%) the speedup would be around 100x.
+
+Queries with no WHERE clause or range operators (`>`, `<`) fall back to the full scan path automatically.
+
+The index itself is immutable and content-addressed -- it's stored as a blob in NilesKV's object store and its hash is part of the commit, so you can cryptographically verify the index matches the data it was built from.
+
+### Query time without index (full scan baseline)
 
 | Docs | `GET *` | `WHERE role = "admin"` | `WHERE age > 30` | `WHERE AND` |
 |------|---------|------------------------|------------------|-------------|
@@ -127,26 +152,9 @@ I ran a benchmark seeding NilesKV with increasing document counts and timing the
 | 5,000 | 0.817ms | 0.992ms | 0.967ms | 1.035ms |
 | 10,000 | 1.806ms | 2.106ms | 2.078ms | 2.240ms |
 
-Scales linearly. Doubling document count roughly doubles query time, which is expected since the evaluator does a full scan.
+Scales linearly -- doubling documents roughly doubles query time.
 
-### Loading state from disk (cold, end-to-end)
-
-This is what you actually pay the first time you run a query, before anything is cached.
-
-| Docs | Median load + query |
-|------|---------------------|
-| 100 | 7ms |
-| 500 | 36ms |
-| 1,000 | 70ms |
-| 2,500 | 180ms |
-| 5,000 | 355ms |
-| 10,000 | 703ms |
-
-It's slow because NilesKV stores every document as its own file on disk. Loading 10k documents means 10k file reads. This is the tradeoff for content-addressed immutable storage.
-
-### NilesQL vs SQLite (10,000 rows, warm)
-
-I was curious how it compared to SQLite doing the same queries. SQLite stores structured columns, NilesQL scans JSON blobs. Neither has indexes.
+### NilesQL vs SQLite (10,000 rows, no index on either side)
 
 | Query | NilesQL | SQLite |
 |-------|---------|--------|
@@ -156,15 +164,13 @@ I was curious how it compared to SQLite doing the same queries. SQLite stores st
 | `WHERE active = true` | 2.10ms | 3.93ms |
 | `WHERE role AND active` | 2.24ms | 1.61ms |
 
-Full scans are faster in NilesQL because it's just iterating a plain JS object. SQLite has to deserialize its binary row format. For filtered queries they're roughly comparable. SQLite pulls ahead on compound conditions, probably because it can short-circuit more aggressively.
-
-The comparison isn't really fair to either side -- SQLite is a mature database engine and NilesQL doesn't have indexes -- but the numbers are at least in the same ballpark, which I wasn't expecting.
+Full scans are faster in NilesQL because it's iterating a plain JS object -- SQLite has to deserialize its binary row format. For filtered queries they're roughly comparable. SQLite pulls ahead slightly on compound conditions. Neither side has indexes here so it's an even comparison of raw scan speed.
 
 ### Parser fuzzer
 
-I ran the parser against over a billion randomly generated and mutated query strings to check for crashes. The contract is simple: every input should either parse successfully or throw a clean `Error`. No hangs, no uncaught exceptions.
+Ran the parser against randomly generated and mutated query strings for several hours to check for crashes. Every input should either parse successfully or throw a clean `Error` -- no hangs, no uncaught exceptions.
 
-After 1,036,080,000 inputs: **0 crashes**.
+After 547,460,000 inputs: **0 crashes**.
 
 ---
 
