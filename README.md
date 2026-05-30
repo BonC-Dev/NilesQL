@@ -114,7 +114,10 @@ npm test
 
 ## Performance
 
-All benchmarks run on a MacBook Air M1, 8 GB. Numbers are medians.
+Benchmarks run on two machines. Numbers are medians.
+
+- **Mac M1**: MacBook Air M1, 8 GB
+- **Windows**: Intel/AMD desktop, 32 GB RAM
 
 ### Indexed queries vs full scan
 
@@ -156,6 +159,8 @@ Scales linearly -- doubling documents roughly doubles query time.
 
 ### NilesQL vs SQLite vs NeDB vs LowDB (10,000 docs, all in-memory, no indexes)
 
+**Mac M1**
+
 | Query | NilesQL | SQLite | NeDB | LowDB |
 |-------|---------|--------|------|-------|
 | Full scan | 2.05ms | 6.14ms | 2.71ms | 0.08ms |
@@ -164,7 +169,17 @@ Scales linearly -- doubling documents roughly doubles query time.
 | `WHERE active = true` | 2.32ms | 3.98ms | 2.74ms | 0.09ms |
 | `WHERE role AND active` | 2.49ms | 1.62ms | 1.94ms | 0.08ms |
 
-NilesQL is faster than SQLite on full scans and range queries. SQLite edges ahead slightly on equality and compound conditions. NeDB is close throughout.
+**Windows (32 GB RAM)**
+
+| Query | NilesQL | SQLite | NeDB | LowDB |
+|-------|---------|--------|------|-------|
+| Full scan | 3.49ms | 8.76ms | 3.13ms | 0.12ms |
+| `WHERE role = "admin"` | 3.74ms | 3.31ms | 2.63ms | 0.10ms |
+| `WHERE age > 30` | 3.64ms | 6.53ms | 3.91ms | 0.12ms |
+| `WHERE active = true` | 3.72ms | 6.68ms | 3.48ms | 0.12ms |
+| `WHERE role AND active` | 3.89ms | 2.62ms | 2.73ms | 0.10ms |
+
+NilesQL is faster than SQLite on full scans and range queries on both machines. SQLite edges ahead on equality and compound conditions. NeDB is close throughout. The relative pattern is consistent across hardware -- Mac M1 (Apple Silicon) and a Windows x86 machine show the same results.
 
 LowDB is the outlier -- it has no query language at all. There is no parser, no AST, no evaluation layer. You pass it a plain JavaScript function and it runs `array.filter()`. That is why it is so fast. It is included here as a reference point for bare JS iteration speed, not as a real comparison.
 
