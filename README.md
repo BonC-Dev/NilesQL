@@ -3,8 +3,8 @@
 I built [NilesKV](../nileskv) to learn how content-addressed storage works. After using it for a while I kept running into the same problem: you can only get a document if you already know its exact key.
 
 ```
-GET /document/user:alice    -- works if you know the key
-GET /document/user:???      -- useless if you don't
+GET /document/user:alice    // works if you know the key
+GET /document/user:???      // useless if you don't
 ```
 
 If you want all users where `role` is `"admin"`, you have to write a script that pulls every document and filters it yourself. Every time. That gets old fast.
@@ -23,11 +23,11 @@ node index.js 'GET *'
 
 There are three pieces:
 
-**Lexer** (`src/lexer.js`) -- reads the query string character by character and outputs a flat list of tokens: keywords like `GET`, `WHERE`, `AND`, operators like `=` and `>=`, and values like `"admin"`, `18`, `true`.
+**Lexer** (`src/lexer.js`) reads the query string character by character and outputs a flat list of tokens: keywords like `GET`, `WHERE`, `AND`, operators like `=` and `>=`, and values like `"admin"`, `18`, `true`.
 
-**Parser** (`src/parser.js`) -- takes the token list and builds an AST using recursive descent. The tree describes which key pattern you want and what conditions to apply.
+**Parser** (`src/parser.js`) takes the token list and builds an AST using recursive descent. The tree describes which key pattern you want and what conditions to apply.
 
-**Evaluator** (`src/evaluator.js`) -- loads the current state from NilesKV's `.db` directory, filters documents by key pattern, then checks each one against your WHERE conditions. Returns the matches.
+**Evaluator** (`src/evaluator.js`) loads the current state from NilesKV's `.db` directory, filters documents by key pattern, then checks each one against your WHERE conditions. Returns the matches.
 
 NilesQL is read-only. It never calls any write functions.
 
@@ -116,12 +116,12 @@ npm test
 
 Benchmarks run on two machines. Numbers are medians.
 
-- **Mac M1**: MacBook Air M1, 8 GB
-- **Windows**: Intel/AMD desktop, 32 GB RAM
+- **Mac M1:** MacBook Air M1, 8 GB
+- **Windows:** Intel/AMD desktop, 32 GB RAM
 
 ### Indexed queries vs full scan
 
-NilesKV builds a field index at commit time -- a content-addressed blob mapping field values to document keys. NilesQL uses it to skip loading documents that can't match before reading them from disk.
+NilesKV builds a field index at commit time, a content-addressed blob mapping field values to document keys. NilesQL uses it to skip loading documents that can't match before reading them from disk.
 
 The speedup is proportional to selectivity. The fewer documents that match, the fewer blobs get read, the bigger the gap.
 
@@ -138,11 +138,11 @@ The speedup is proportional to selectivity. The fewer documents that match, the 
 | 10,000 | `WHERE role = "admin"` | 797.5ms | 260.5ms | 3.1x |
 | 10,000 | `WHERE role = "admin" AND active = true` | 919.4ms | 204.5ms | 4.5x |
 
-The speedup stays consistent as the dataset grows because the index lookup is O(1) -- it doesn't matter how many total documents exist, only how many match. At lower match rates (1% instead of 33%) the speedup would be around 100x.
+The speedup stays consistent as the dataset grows because the index lookup is O(1). It doesn't matter how many total documents exist, only how many match. At lower match rates (1% instead of 33%) the speedup would be around 100x.
 
 Queries with no WHERE clause or range operators (`>`, `<`) fall back to the full scan path automatically.
 
-The index itself is immutable and content-addressed -- it's stored as a blob in NilesKV's object store and its hash is part of the commit, so you can cryptographically verify the index matches the data it was built from.
+The index itself is immutable and content-addressed. It's stored as a blob in NilesKV's object store and its hash is part of the commit, so you can cryptographically verify the index matches the data it was built from.
 
 ### Query time without index (full scan baseline)
 
@@ -155,7 +155,7 @@ The index itself is immutable and content-addressed -- it's stored as a blob in 
 | 5,000 | 0.817ms | 0.992ms | 0.967ms | 1.035ms |
 | 10,000 | 1.806ms | 2.106ms | 2.078ms | 2.240ms |
 
-Scales linearly -- doubling documents roughly doubles query time.
+Scales linearly. Doubling documents roughly doubles query time.
 
 ### NilesQL vs SQLite vs NeDB vs LowDB (10,000 docs, all in-memory, no indexes)
 
@@ -179,15 +179,15 @@ Scales linearly -- doubling documents roughly doubles query time.
 | `WHERE active = true` | 3.72ms | 6.68ms | 3.48ms | 0.12ms |
 | `WHERE role AND active` | 3.89ms | 2.62ms | 2.73ms | 0.10ms |
 
-NilesQL is faster than SQLite on full scans and range queries on both machines. SQLite edges ahead on equality and compound conditions. NeDB is close throughout. The relative pattern is consistent across hardware -- Mac M1 (Apple Silicon) and a Windows x86 machine show the same results.
+NilesQL is faster than SQLite on full scans and range queries on both machines. SQLite edges ahead on equality and compound conditions. NeDB is close throughout. The relative pattern is consistent across hardware: Mac M1 (Apple Silicon) and a Windows x86 machine show the same results.
 
-LowDB is the outlier -- it has no query language at all. There is no parser, no AST, no evaluation layer. You pass it a plain JavaScript function and it runs `array.filter()`. That is why it is so fast. It is included here as a reference point for bare JS iteration speed, not as a real comparison.
+LowDB is the outlier. It has no query language at all. There is no parser, no AST, no evaluation layer. You pass it a plain JavaScript function and it runs `array.filter()`. That is why it is so fast. It is included here as a reference point for bare JS iteration speed, not as a real comparison.
 
 Neither NilesQL, SQLite, nor NeDB have indexes enabled in this test, so it is a direct comparison of raw scan speed.
 
 ### Parser fuzzer
 
-Ran the parser against randomly generated and mutated query strings for several hours to check for crashes. Every input should either parse successfully or throw a clean `Error` -- no hangs, no uncaught exceptions.
+Ran the parser against randomly generated and mutated query strings for several hours to check for crashes. Every input should either parse successfully or throw a clean `Error`, no hangs, no uncaught exceptions.
 
 After 547,460,000 inputs: **0 crashes**.
 
