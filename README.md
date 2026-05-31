@@ -114,9 +114,10 @@ npm test
 
 ## Performance
 
-Benchmarks run on two machines. Numbers are medians.
+Benchmarks run on three machines. Numbers are medians.
 
 - **Mac M1:** MacBook Air M1, 8 GB
+- **Mac M4:** MacBook Air M4, 16 GB
 - **Windows:** Intel/AMD desktop, 32 GB RAM
 
 ### Indexed queries vs full scan
@@ -124,6 +125,8 @@ Benchmarks run on two machines. Numbers are medians.
 NilesKV builds a field index at commit time, a content-addressed blob mapping field values to document keys. NilesQL uses it to skip loading documents that can't match before reading them from disk.
 
 The speedup is proportional to selectivity. The fewer documents that match, the fewer blobs get read, the bigger the gap.
+
+**Mac M1**
 
 | Docs | Query | Full scan | Indexed | Speedup |
 |------|-------|-----------|---------|---------|
@@ -137,6 +140,21 @@ The speedup is proportional to selectivity. The fewer documents that match, the 
 | 5,000 | `WHERE role = "admin" AND active = true` | 387.8ms | 96.1ms | 4.0x |
 | 10,000 | `WHERE role = "admin"` | 797.5ms | 260.5ms | 3.1x |
 | 10,000 | `WHERE role = "admin" AND active = true` | 919.4ms | 204.5ms | 4.5x |
+
+**Mac M4**
+
+| Docs | Query | Full scan | Indexed | Speedup |
+|------|-------|-----------|---------|---------|
+| 500 | `WHERE role = "admin"` | 27.9ms | 9.0ms | 3.1x |
+| 500 | `WHERE role = "admin" AND active = true` | 27.0ms | 6.8ms | 4.0x |
+| 1,000 | `WHERE role = "admin"` | 55.7ms | 17.8ms | 3.1x |
+| 1,000 | `WHERE role = "admin" AND active = true` | 56.2ms | 13.5ms | 4.2x |
+| 2,500 | `WHERE role = "admin"` | 142.5ms | 46.6ms | 3.1x |
+| 2,500 | `WHERE role = "admin" AND active = true` | 141.1ms | 33.9ms | 4.2x |
+| 5,000 | `WHERE role = "admin"` | 292.6ms | 97.8ms | 3.0x |
+| 5,000 | `WHERE role = "admin" AND active = true` | 290.6ms | 72.9ms | 4.0x |
+| 10,000 | `WHERE role = "admin"` | 587.1ms | 194.8ms | 3.0x |
+| 10,000 | `WHERE role = "admin" AND active = true` | 585.3ms | 145.8ms | 4.0x |
 
 The speedup stays consistent as the dataset grows because the index lookup is O(1). It doesn't matter how many total documents exist, only how many match. At lower match rates (1% instead of 33%) the speedup would be around 100x.
 
@@ -169,6 +187,16 @@ Scales linearly. Doubling documents roughly doubles query time.
 | `WHERE active = true` | 2.32ms | 3.98ms | 2.74ms | 0.09ms |
 | `WHERE role AND active` | 2.49ms | 1.62ms | 1.94ms | 0.08ms |
 
+**Mac M4 (16 GB RAM)**
+
+| Query | NilesQL | SQLite | NeDB | LowDB |
+|-------|---------|--------|------|-------|
+| Full scan | 1.19ms | 3.63ms | 1.26ms | 0.06ms |
+| `WHERE role = "admin"` | 1.28ms | 1.34ms | 1.03ms | 0.05ms |
+| `WHERE age > 30` | 1.25ms | 2.69ms | 1.49ms | 0.06ms |
+| `WHERE active = true` | 1.30ms | 2.75ms | 1.37ms | 0.06ms |
+| `WHERE role AND active` | 1.33ms | 1.09ms | 1.05ms | 0.05ms |
+
 **Windows (32 GB RAM)**
 
 | Query | NilesQL | SQLite | NeDB | LowDB |
@@ -179,7 +207,7 @@ Scales linearly. Doubling documents roughly doubles query time.
 | `WHERE active = true` | 3.72ms | 6.68ms | 3.48ms | 0.12ms |
 | `WHERE role AND active` | 3.89ms | 2.62ms | 2.73ms | 0.10ms |
 
-NilesQL is faster than SQLite on full scans and range queries on both machines. SQLite edges ahead on equality and compound conditions. NeDB is close throughout. The relative pattern is consistent across hardware: Mac M1 (Apple Silicon) and a Windows x86 machine show the same results.
+NilesQL is faster than SQLite on full scans and range queries across all three machines. SQLite edges ahead on equality and compound conditions. NeDB is close throughout. The relative pattern is consistent across Apple M1, Apple M4, and Windows x86 -- two operating systems and two chip architectures showing the same results.
 
 LowDB is the outlier. It has no query language at all. There is no parser, no AST, no evaluation layer. You pass it a plain JavaScript function and it runs `array.filter()`. That is why it is so fast. It is included here as a reference point for bare JS iteration speed, not as a real comparison.
 
