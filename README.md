@@ -54,7 +54,7 @@ WHERE role = "admin" AND verified = true
 
 Supported operators: `=` `!=` `>` `<` `>=` `<=`
 
-You can chain conditions with `AND`. `OR` is not supported yet.
+You can chain conditions with `AND` and `OR`. AND has higher precedence than OR.
 
 Values can be strings (quoted), numbers, or booleans (`true`/`false`).
 
@@ -223,7 +223,6 @@ After 547,460,000 inputs: **0 crashes**.
 
 ## Limitations
 
-- `OR` in WHERE clauses is not supported
 - Conditions only check top-level fields. `address.city` does not work.
 - No sorting, no `LIMIT`
 - Reads the current HEAD state only. No historical queries.
