@@ -120,7 +120,7 @@ Benchmarks run on three machines. Numbers are medians.
 
 - **Mac M1:** MacBook Air M1, 8 GB
 - **Mac M4:** MacBook Air M4, 16 GB
-- **Windows:** Intel/AMD desktop, 32 GB RAM
+- **Windows:** Intel Laptop, 32 GB RAM
 
 ### Indexed queries vs full scan
 
