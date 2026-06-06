@@ -174,6 +174,36 @@ describe('evaluate', () => {
     });
   });
 
+  describe('OR conditions', () => {
+    test('OR returns docs matching either condition', () => {
+      const results = run('GET user:* WHERE role = "admin" OR role = "editor"', DOCS);
+      expect(results).toHaveLength(2);
+      expect(results.some(r => r.doc.role === 'admin')).toBe(true);
+      expect(results.some(r => r.doc.role === 'editor')).toBe(true);
+    });
+
+    test('OR where neither matches returns empty', () => {
+      const results = run('GET user:* WHERE role = "superadmin" OR role = "guest"', DOCS);
+      expect(results).toHaveLength(0);
+    });
+
+    test('OR where one side matches returns those docs', () => {
+      const results = run('GET user:* WHERE role = "admin" OR role = "nonexistent"', DOCS);
+      expect(results).toHaveLength(1);
+      expect(results[0].key).toBe('user:alice');
+    });
+
+    test('AND within OR branch: both conditions must pass', () => {
+      const results = run('GET user:* WHERE role = "admin" AND active = true OR role = "editor"', DOCS);
+      expect(results).toHaveLength(2);
+    });
+
+    test('OR across three values', () => {
+      const results = run('GET user:* WHERE role = "admin" OR role = "editor" OR role = "viewer"', DOCS);
+      expect(results).toHaveLength(3);
+    });
+  });
+
   describe('edge cases', () => {
     test('empty documents object returns empty results', () => {
       const results = run('GET *', {});

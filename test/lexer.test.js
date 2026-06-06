@@ -118,6 +118,27 @@ describe('tokenize', () => {
     ]);
   });
 
+  test('OR keyword is tokenized', () => {
+    const tokens = tokenize('GET * WHERE role = "admin" OR role = "editor"');
+    expect(types(tokens)).toContain(T.OR);
+  });
+
+  test('OR query has correct token sequence', () => {
+    const tokens = tokenize('GET * WHERE role = "admin" OR role = "editor"');
+    expect(types(tokens)).toEqual([
+      T.GET, T.KEY_PATTERN, T.WHERE,
+      T.IDENT, T.EQ, T.STRING,
+      T.OR,
+      T.IDENT, T.EQ, T.STRING,
+      T.EOF,
+    ]);
+  });
+
+  test('OR is case insensitive', () => {
+    const tokens = tokenize('GET * WHERE role = "admin" or role = "editor"');
+    expect(types(tokens)).toContain(T.OR);
+  });
+
   test('case insensitive keywords GET WHERE AND', () => {
     const tokens = tokenize('get * where role = "admin"');
     expect(tokens[0].type).toBe(T.GET);

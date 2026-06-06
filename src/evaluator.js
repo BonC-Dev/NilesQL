@@ -30,6 +30,9 @@ export function evaluate(ast, documents) {
 }
 
 function evalCondition(node, doc) {
+  if (node.type === 'Or') {
+    return node.conditions.some(c => evalCondition(c, doc));
+  }
   if (node.type === 'And') {
     return node.conditions.every(c => evalCondition(c, doc));
   }

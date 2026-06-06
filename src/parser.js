@@ -37,7 +37,20 @@ export function parse(tokens) {
     return { type: 'ExactPattern', key: val };
   }
 
+  // OR has lower precedence than AND.
+  // a AND b OR c AND d  =>  (a AND b) OR (c AND d)
   function parseCondition() {
+    const first = parseAndGroup();
+    if (peek().type !== T.OR) return first;
+    const conditions = [first];
+    while (peek().type === T.OR) {
+      consume(T.OR);
+      conditions.push(parseAndGroup());
+    }
+    return { type: 'Or', conditions };
+  }
+
+  function parseAndGroup() {
     const first = parseComparison();
     if (peek().type !== T.AND) return first;
     const conditions = [first];

@@ -109,6 +109,43 @@ describe('parse', () => {
     });
   });
 
+  describe('OR conditions', () => {
+    test('two OR branches produces Or node', () => {
+      const ast = run('GET * WHERE role = "admin" OR role = "editor"');
+      expect(ast.where.type).toBe('Or');
+      expect(ast.where.conditions).toHaveLength(2);
+    });
+
+    test('OR branches are Comparison nodes', () => {
+      const ast = run('GET * WHERE role = "admin" OR role = "editor"');
+      expect(ast.where.conditions[0].type).toBe('Comparison');
+      expect(ast.where.conditions[1].type).toBe('Comparison');
+    });
+
+    test('first OR branch is correct', () => {
+      const ast = run('GET * WHERE role = "admin" OR role = "editor"');
+      expect(ast.where.conditions[0].value).toBe('admin');
+    });
+
+    test('second OR branch is correct', () => {
+      const ast = run('GET * WHERE role = "admin" OR role = "editor"');
+      expect(ast.where.conditions[1].value).toBe('editor');
+    });
+
+    test('AND has higher precedence than OR', () => {
+      const ast = run('GET * WHERE role = "admin" AND active = true OR role = "editor"');
+      expect(ast.where.type).toBe('Or');
+      expect(ast.where.conditions[0].type).toBe('And');
+      expect(ast.where.conditions[1].type).toBe('Comparison');
+    });
+
+    test('three OR branches', () => {
+      const ast = run('GET * WHERE role = "admin" OR role = "editor" OR role = "viewer"');
+      expect(ast.where.type).toBe('Or');
+      expect(ast.where.conditions).toHaveLength(3);
+    });
+  });
+
   describe('error handling', () => {
     test('missing GET throws', () => {
       expect(() => run('user:* WHERE role = "admin"')).toThrow();

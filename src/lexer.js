@@ -2,6 +2,7 @@ export const T = {
   GET:         'GET',
   WHERE:       'WHERE',
   AND:         'AND',
+  OR:          'OR',
   KEY_PATTERN: 'KEY_PATTERN',
   IDENT:       'IDENT',
   STRING:      'STRING',
@@ -83,6 +84,7 @@ export function tokenize(input) {
 
       if (upper === 'WHERE') { tokens.push({ type: T.WHERE }); continue; }
       if (upper === 'AND')   { tokens.push({ type: T.AND });   continue; }
+      if (upper === 'OR')    { tokens.push({ type: T.OR });    continue; }
       if (word === 'true')   { tokens.push({ type: T.BOOL, value: true });  continue; }
       if (word === 'false')  { tokens.push({ type: T.BOOL, value: false }); continue; }
 
