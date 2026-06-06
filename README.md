@@ -67,7 +67,9 @@ node index.js "GET user:*"
 
 node index.js "GET user:alice"
 
-node index.js 'GET user:* WHERE role = "admin"'
+node index.js 'GET user:* WHERE role = "admin" OR role = "editor"'
+
+node index.js 'GET user:* WHERE role = "admin" AND active = true OR role = "editor"'
 
 node index.js 'GET order:* WHERE status = "pending"'
 
